@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AlbumList } from "@/components/AlbumList";
+import { SiteShell } from "@/components/SiteShell";
 import { getPublishedList } from "@/lib/public";
 
 function yearOf(raw: string) {
@@ -29,7 +30,7 @@ async function YearList({ params }: { params: PageProps<"/[year]">["params"] }) 
 
 export default function Page({ params }: PageProps<"/[year]">) {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-4xl px-4 pt-20 text-zinc-500">Loading…</main>}>
+    <Suspense fallback={<SiteShell><main className="mx-auto max-w-4xl px-4 py-24 text-center text-ink">Loading…</main></SiteShell>}>
       <YearList params={params} />
     </Suspense>
   );

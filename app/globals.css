@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
+/* bolachas.org palette (its Twenty Twenty child theme, measured 2026-10-29).
+   The sky-blue accent only sits on navy or black: on the steel-blue page it
+   is under 2:1 contrast, and navy is ~3.4:1 (fine for the big position
+   numbers only), so small text there is ink/black. */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-}
-
-:root {
-  color-scheme: dark;
+  --color-navy: #003366;
+  --color-steel: #418ab5;
+  --color-steel-deep: #367295;
+  --color-sky: #3eb7fc;
+  --color-ink: #0b1012;
 }
 
 body {

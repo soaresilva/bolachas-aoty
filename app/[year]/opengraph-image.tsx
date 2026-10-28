@@ -12,11 +12,11 @@ export default async function Image({ params }: { params: Promise<{ year: string
   const covers = (list?.ranked ?? []).slice(0, 4).map((e) => e.cover_url).filter(Boolean);
   return new ImageResponse(
     (
-      <div style={{ display: "flex", width: "100%", height: "100%", background: "#09090b", color: "#f4f4f5", padding: 60, gap: 48 }}>
+      <div style={{ display: "flex", width: "100%", height: "100%", background: "#003366", color: "#ffffff", padding: 60, gap: 48 }}>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
-          <div style={{ fontSize: 26, letterSpacing: 6, color: "#71717a" }}>{`BOLACHAS · ${year}`}</div>
-          <div style={{ fontSize: 72, fontWeight: 700, lineHeight: 1.05 }}>{list?.title ?? `Albums of ${year}`}</div>
-          <div style={{ fontSize: 28, color: "#a1a1aa" }}>{list ? `${list.ranked.length} albums` : ""}</div>
+          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, color: "#3eb7fc" }}>{`BOLACHAS.ORG · ${year}`}</div>
+          <div style={{ fontSize: 72, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2 }}>{list?.title ?? `Albums of ${year}`}</div>
+          <div style={{ fontSize: 28, color: "#8ed1fc" }}>{list ? `${list.ranked.length} albums` : ""}</div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", width: 510, height: 510, gap: 10 }}>
           {covers.map((src, i) => (
