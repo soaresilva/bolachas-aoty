@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { placeTarget } from "@/lib/order";
 import type { SearchHit } from "@/lib/spotify";
 import type { Entry, ListWithEntries } from "@/lib/types";
 
@@ -132,7 +133,7 @@ export function AdminApp({ year }: { year: number }) {
           {list.shortlist.map((e) => (
             <li key={e.id}>
               <EntryRow entry={e} busy={busy} run={run}>
-                <PlaceInput key={list.ranked.length} label="Add at #" defaultValue={list.ranked.length + 1} busy={busy} onPlace={(n) => place(e.id, n)} />
+                <PlaceInput key={list.ranked.length} label="Add at #" defaultValue={list.ranked.length + 1} current={null} busy={busy} onPlace={(n) => place(e.id, n)} />
                 <button className={button} disabled={busy} onClick={() => place(e.id, "dismissed")}>Dismiss</button>
               </EntryRow>
             </li>
@@ -228,7 +229,7 @@ function RankedList({
             <SortableRow key={e.id} entry={e} busy={busy} run={run}>
               <button className={button} disabled={busy || i === 0} onClick={() => place(e.id, i)} aria-label="Move up">↑</button>
               <button className={button} disabled={busy || i === list.ranked.length - 1} onClick={() => place(e.id, i + 2)} aria-label="Move down">↓</button>
-              <PlaceInput key={e.position} label="Move to #" defaultValue={e.position!} busy={busy} onPlace={(n) => place(e.id, n)} />
+              <PlaceInput key={e.position} label="Move to #" defaultValue={e.position!} current={e.position} busy={busy} onPlace={(n) => place(e.id, n)} />
               <button className={button} disabled={busy} onClick={() => place(e.id, "shortlist")}>To shortlist</button>
             </SortableRow>
           ))}
@@ -269,12 +270,25 @@ function SortableRow({ entry, busy, run, children }: { entry: Entry; busy: boole
   );
 }
 
-function PlaceInput({ label, defaultValue, busy, onPlace }: { label: string; defaultValue: number; busy: boolean; onPlace: (n: number) => void }) {
+function PlaceInput({
+  label,
+  defaultValue,
+  current,
+  busy,
+  onPlace,
+}: {
+  label: string;
+  defaultValue: number;
+  /** The entry's rank now, or null for a shortlist entry (any position is a change). */
+  current: number | null;
+  busy: boolean;
+  onPlace: (n: number) => void;
+}) {
   // Callers key this on the entry's current position, so a move resets it.
   const [value, setValue] = useState(String(defaultValue));
   const submit = () => {
-    const n = Number(value);
-    if (Number.isInteger(n) && n >= 1 && n !== defaultValue) onPlace(n);
+    const n = placeTarget(value, current);
+    if (n !== null) onPlace(n);
   };
   return (
     <form

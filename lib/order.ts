@@ -25,3 +25,13 @@ export function checkPermutation(current: number[], proposed: number[]): string 
   }
   return null;
 }
+
+/** The position typed into a "Move to #" / "Add at #" box, or null when
+ * submitting it should do nothing: not a whole number >= 1, or the rank the
+ * entry already has. `current` is null for a shortlist entry, where every
+ * position (including the prefilled "end of list") is a real change. */
+export function placeTarget(value: string, current: number | null): number | null {
+  const n = Number(value.trim());
+  if (!value.trim() || !Number.isInteger(n) || n < 1) return null;
+  return n === current ? null : n;
+}
