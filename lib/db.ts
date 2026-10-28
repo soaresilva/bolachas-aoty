@@ -1,5 +1,6 @@
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool, type PoolClient } from "pg";
+import { findDatabaseUrl } from "./database-url.mjs";
 
 /** The slice of a Postgres connection the app uses. Production runs it on
  * node-postgres against Neon; tests run it on PGlite (in-process Postgres),
@@ -46,9 +47,7 @@ let current: Db | null = null;
 
 export function getDb(): Db {
   if (!current) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) throw new Error("DATABASE_URL is not set");
-    const pool = new Pool({ connectionString, max: 5 });
+    const pool = new Pool({ connectionString: findDatabaseUrl(), max: 5 });
     // Lets Vercel close idle connections before a function instance suspends.
     attachDatabasePool(pool);
     current = poolDb(pool);

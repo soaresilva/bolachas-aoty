@@ -1,11 +1,14 @@
-// Applies db/schema.sql (idempotent) to DATABASE_URL. Runs before every
+// Applies db/schema.sql (idempotent) to the database (see lib/database-url.mjs). Runs before every
 // Vercel build (see package.json "vercel-build"), and by hand for local dev.
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { findDatabaseUrl } from "../lib/database-url.mjs";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("DATABASE_URL is not set");
+let url: string;
+try {
+  url = findDatabaseUrl();
+} catch (e) {
+  console.error((e as Error).message);
   process.exit(1);
 }
 const client = new pg.Client({ connectionString: url });

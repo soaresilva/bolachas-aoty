@@ -43,7 +43,7 @@ aoty_seed.py                                 POST /api/admin/import  (Bearer AOT
 
 | Variable | What |
 | --- | --- |
-| `DATABASE_URL` | Neon Postgres connection string (set automatically by the Neon integration) |
+| `DATABASE_URL` | Neon Postgres connection string, set by the Neon integration. `POSTGRES_URL` or a prefixed name (`STORAGE_DATABASE_URL`) also works; see `lib/database-url.mjs` |
 | `ADMIN_PASSWORD` | the admin login password |
 | `SESSION_SECRET` | at least 32 random characters; signs the session cookie (`openssl rand -hex 32`) |
 | `AOTY_IMPORT_TOKEN` | bearer token for `/api/admin/import`; the same value goes in spotify-curator's `.env` |
