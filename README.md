@@ -57,7 +57,7 @@ Changing the password or the secret logs out every existing session.
 ## Deploy
 
 1. Push this repo to GitHub (`soaresilva/bolachas-aoty`).
-2. In Vercel, use Add New → Project → import the repo. Framework: Next.js; the defaults are fine.
+2. In Vercel, use Add New → Project → import the repo. `vercel.json` pins the framework to Next.js and the build command to `npm run vercel-build`. If Settings → Build and Deployment still shows Framework Preset "Other" or an Output Directory override (as on the first import), set it to Next.js and clear the override.
 3. In the project, go to Storage → add **Neon** (Marketplace, free plan) and connect it to all environments. This sets `DATABASE_URL`.
 4. Add the other env vars above, then redeploy. `npm run vercel-build` applies `db/schema.sql` (idempotent) before `next build`, so the tables exist on the first deploy.
 5. Domain: in Settings → Domains add `aoty.bolachas.org`, then create the CNAME Vercel shows at the DNS host. It's a plain CNAME; nothing changes for the bolachas.org certificate.
