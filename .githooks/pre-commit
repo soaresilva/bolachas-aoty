@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+npm test --silent
+npm run --silent typecheck
+npm run --silent lint

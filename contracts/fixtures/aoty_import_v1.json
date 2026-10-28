@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "year": 2026,
+  "generated_at": "2026-10-28T12:00:00+00:00",
+  "candidates": [
+    {
+      "spotify_album_id": "alb1",
+      "artist": "Jeff Rosenstock",
+      "album": "Thanks, Sorry!",
+      "label": "Polyvinyl Record Co.",
+      "release_date": "2026-03-13",
+      "cover_url": "https://i.scdn.co/image/cover1",
+      "spotify_url": "https://open.spotify.com/album/alb1",
+      "total_tracks": 2,
+      "scrobbles": 30,
+      "listens": 15.0,
+      "tracks": [
+        {"id": "t1", "name": "Head", "track_number": 1, "duration_ms": 180000},
+        {"id": "t2", "name": "Heart", "track_number": 2, "duration_ms": 200000}
+      ]
+    },
+    {
+      "spotify_album_id": "alb2",
+      "artist": "Ratboys",
+      "album": "Singin' to an Empty Chair",
+      "label": "New West Records",
+      "release_date": "2026-02-06",
+      "cover_url": "https://i.scdn.co/image/cover2",
+      "spotify_url": "https://open.spotify.com/album/alb2",
+      "total_tracks": 1,
+      "scrobbles": 9,
+      "listens": 9.0,
+      "tracks": [
+        {"id": "t3", "name": "Light Night Mountains All That", "track_number": 1, "duration_ms": 240000}
+      ]
+    }
+  ]
+}
