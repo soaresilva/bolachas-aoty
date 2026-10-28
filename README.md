@@ -25,14 +25,13 @@ aoty_seed.py                                 POST /api/admin/import  (Bearer AOT
   -> albums -> Spotify -> filter                 │
   -> rank by full-album listens                  ▼
                                              Postgres: lists, entries
-                                                 │  every admin change calls revalidateTag
+                                                 │
                                                  ▼
-                                             /<year>  cached page ('use cache', cacheLife max)
+                                             /<year>  rendered per request (no page cache)
 ```
 
 - `lib/repo.ts` has all the SQL. Positions are always exactly 1..N. Every move is computed in `lib/order.ts` and written back in one `UPDATE ... FROM unnest(...) WITH ORDINALITY` statement. The unique index on `(list_id, position)` is deferred, so a rewrite never trips on itself mid-statement.
-- `lib/public.ts` holds the cached reads behind the public pages. Admin writes revalidate the `list-<year>` tag with `{ expire: 0 }`, so the next visit renders fresh.
-- Year pages are deliberately **not** prerendered at build: `generateStaticParams` returns only a placeholder `"0"`. When `/2026` was prerendered, the first request after every edit served the build-time snapshot (seen with `next start`, Next 16.4). A year rendered on its first visit is a plain ISR entry that the tag invalidates cleanly. `tests/pages.test.ts` keeps it that way, and `npm run smoke` checks it against a running server.
+- The public page is deliberately **uncached**: `lib/public.ts` reads Postgres on every visit (one small query). Two caching setups were tried and dropped. With `/2026` prerendered at build, the first request after each edit served the build-time snapshot. With per-request ISR plus `revalidateTag`, Vercel's CDN kept serving the pre-edit page (`x-vercel-cache: STALE`) for many requests after each change. For a low-traffic list, an edit you can't see is the worse failure. `npm run smoke` checks that every edit shows on the very first request.
 - Entries have three statuses:
   - `ranked`: on the list.
   - `shortlist`: a candidate.
@@ -80,7 +79,7 @@ set -a; . ./.env.local; set +a; npm run migrate
 npm run dev      # http://localhost:3000/admin
 ```
 
-`next build` doesn't touch the database (no year page is prerendered at build, see below), so it runs without `DATABASE_URL`.
+`next build` doesn't touch the database (nothing is prerendered from it), so it runs without `DATABASE_URL`.
 
 ## Tests
 
@@ -98,7 +97,6 @@ What's covered:
 - `tests/repo.test.ts`: every repository operation against the real schema. Placement and reordering keep positions at 1..N, stale orders are refused, a re-import preserves your edits and dismissals, imports are all-or-nothing, and the schema enforces at most two picks.
 - `tests/routes.test.ts`: every admin route refuses unauthenticated requests, the import token opens only the import route, the full admin flow works end to end, and bad input returns 400s and 404s.
 - `tests/auth.test.ts`, `tests/spotify.test.ts`, `tests/export.test.ts`: sessions, the Spotify client, and HTML escaping in the WordPress export.
-- `tests/pages.test.ts`: no real year is prerendered at build.
 
 `scripts/smoke.mjs` is the slower end-to-end check, run before shipping and against production after a deploy. It exercises auth refusals, every edit, publish/unpublish, and that the public page shows each change on the very first request. On a non-local URL it only reads unless `SMOKE_WRITE=1`.
 

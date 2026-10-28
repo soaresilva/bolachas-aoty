@@ -4,15 +4,6 @@ import { Suspense } from "react";
 import { AlbumList } from "@/components/AlbumList";
 import { getPublishedList } from "@/lib/public";
 
-// Cache Components needs at least one param here, but the real years are
-// deliberately left out: data captured into a build-time prerender came back
-// for the first request after every admin edit (tested with next start). A
-// year rendered on its first visit is a plain ISR entry that the list tag
-// invalidates cleanly. "0" renders the not-found page.
-export async function generateStaticParams() {
-  return [{ year: "0" }];
-}
-
 function yearOf(raw: string) {
   const year = Number(raw);
   return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : null;

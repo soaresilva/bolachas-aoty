@@ -1,8 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
-
-import { revalidateTag } from "next/cache";
 import { POST as login } from "@/app/api/auth/login/route";
 import { PATCH as patchEntry } from "@/app/api/admin/entries/[id]/route";
 import { POST as place } from "@/app/api/admin/entries/[id]/place/route";
@@ -32,7 +29,6 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await t.reset();
-  vi.mocked(revalidateTag).mockClear();
 });
 
 const year = { params: Promise.resolve({ year: "2026" }) };
@@ -94,7 +90,6 @@ describe("login", () => {
 describe("admin flow", () => {
   it("import, rank, reorder, edit, publish, export", async () => {
     const [jeff, ratboys] = await seed();
-    expect(revalidateTag).toHaveBeenCalledWith("list-2026", { expire: 0 });
 
     expect((await place(req({ place: 1 }), entry(jeff))).status).toBe(200);
     expect((await place(req({ place: 1 }), entry(ratboys))).status).toBe(200);
