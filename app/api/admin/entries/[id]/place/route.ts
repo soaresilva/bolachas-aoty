@@ -7,6 +7,6 @@ import { placeEntry } from "@/lib/repo";
 // unranks it, {place: "dismissed"} hides it from the shortlist too.
 export const POST = adminRoute(async (request, ctx: RouteContext<"/api/admin/entries/[id]/place">) => {
   const id = parseId((await ctx.params).id);
-  const year = await placeEntry(getDb(), id, placeSchema.parse(await request.json()).place);
+  await placeEntry(getDb(), id, placeSchema.parse(await request.json()).place);
   return Response.json({ ok: true });
 });

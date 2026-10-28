@@ -103,7 +103,7 @@ async function entryWithList(db: Db, id: number) {
 }
 
 /** Puts an entry at a rank (shifting the others), back on the shortlist,
- * or dismissed. Returns the list's year, for revalidation. */
+ * or dismissed. Returns the list's year.  */
 export async function placeEntry(db: Db, id: number, place: number | "shortlist" | "dismissed") {
   return db.tx(async (tx) => {
     const entry = await entryWithList(tx, id);

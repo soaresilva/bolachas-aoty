@@ -5,6 +5,6 @@ import { updateEntry } from "@/lib/repo";
 
 export const PATCH = adminRoute(async (request, ctx: RouteContext<"/api/admin/entries/[id]">) => {
   const id = parseId((await ctx.params).id);
-  const year = await updateEntry(getDb(), id, entryPatchSchema.parse(await request.json()));
+  await updateEntry(getDb(), id, entryPatchSchema.parse(await request.json()));
   return Response.json({ ok: true });
 });
