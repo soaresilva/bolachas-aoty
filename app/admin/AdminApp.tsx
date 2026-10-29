@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { placeTarget } from "@/lib/order";
 import type { SearchHit } from "@/lib/spotify";
+import { linkSite } from "@/lib/text";
 import type { Entry, ListWithEntries } from "@/lib/types";
 
 type Place = number | "shortlist" | "dismissed";
@@ -47,7 +48,7 @@ const button =
 const input =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 outline-none focus:border-zinc-400";
 
-export function AdminApp({ year }: { year: number }) {
+export function AdminApp({ year, years }: { year: number; years: number[] }) {
   const [list, setList] = useState<ListWithEntries | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -93,9 +94,18 @@ export function AdminApp({ year }: { year: number }) {
   return (
     <main className="mx-auto max-w-5xl space-y-10 px-4 py-8 pb-32">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-zinc-500">Bolachas · admin · {year}</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-zinc-500">
+          Bolachas · admin ·{" "}
+          {years.map((y) =>
+            y === year ? (
+              <span key={y} className="mx-1 text-zinc-100">{y}</span>
+            ) : (
+              <Link key={y} href={`/admin?year=${y}`} className="mx-1 underline hover:text-zinc-200">{y}</Link>
+            ),
+          )}
+        </p>
         <nav className="flex flex-wrap gap-2 text-sm">
-          <Link className={button} href="/admin/preview">Preview</Link>
+          <Link className={button} href={`/admin/preview?year=${year}`}>Preview</Link>
           {list.published && <Link className={button} href={`/${year}`}>Public page</Link>}
           <a className={button} href={`/api/admin/lists/${year}/export`}>Export for WordPress</a>
           <form method="post" action="/api/auth/logout">
@@ -398,7 +408,7 @@ function EntryEditor({ entry, busy, run, onDone }: { entry: Entry; busy: boolean
       <div className="flex items-center gap-3 sm:col-span-2">
         <button className={button} disabled={busy || duplicate} onClick={save}>Save</button>
         {duplicate && <span className="text-sm text-amber-400">Pick two different tracks.</span>}
-        <a className="text-sm text-zinc-500 underline" href={entry.spotify_url} target="_blank" rel="noreferrer">Open on Spotify</a>
+        <a className="text-sm text-zinc-500 underline" href={entry.spotify_url} target="_blank" rel="noreferrer">Open on {linkSite(entry.spotify_url)}</a>
       </div>
     </div>
   );

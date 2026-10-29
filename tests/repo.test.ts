@@ -5,14 +5,16 @@ import {
   ensureList,
   getListWithEntries,
   importCandidates,
+  importedOrder,
   Invalid,
+  listYears,
   NotFound,
   placeEntry,
   reorder,
   updateEntry,
   updateList,
 } from "@/lib/repo";
-import { album, fixture, testDb } from "./helpers";
+import { album, fixture, fixtureV2, testDb } from "./helpers";
 
 let t: Awaited<ReturnType<typeof testDb>>;
 beforeAll(async () => {
@@ -173,11 +175,20 @@ describe("import", () => {
   });
 
   it("rejects a payload from a future contract version", () => {
-    expect(importSchema.safeParse({ ...fixture, version: 2 }).success).toBe(false);
+    expect(importSchema.safeParse({ ...fixture, version: 3 }).success).toBe(false);
+  });
+
+  it("a v1 payload can't carry ranks or null play counts", () => {
+    const ranked = structuredClone(fixture);
+    ranked.candidates[0].rank = 1;
+    expect(importSchema.safeParse(ranked).success).toBe(false);
+    const noCounts = structuredClone(fixture);
+    noCounts.candidates[0].scrobbles = null;
+    expect(importSchema.safeParse(noCounts).success).toBe(false);
   });
 
   it("creates shortlist entries ordered by listens", async () => {
-    expect(await importCandidates(t.db, importSchema.parse(fixture))).toEqual({ created: 2, updated: 0 });
+    expect(await importCandidates(t.db, importSchema.parse(fixture))).toEqual({ created: 2, updated: 0, ranked: 0 });
     const list = await getListWithEntries(t.db, 2026);
     expect(list!.shortlist.map((e) => [e.album, e.scrobbles, e.listens])).toEqual([
       ["Thanks, Sorry!", 30, 15],
@@ -198,7 +209,7 @@ describe("import", () => {
     again.candidates[0].scrobbles = 50;
     again.candidates[0].listens = 25;
     again.candidates[0].label = "Polyvinyl";
-    expect(await importCandidates(t.db, again)).toEqual({ created: 0, updated: 2 });
+    expect(await importCandidates(t.db, again)).toEqual({ created: 0, updated: 2, ranked: 0 });
 
     const after = await getListWithEntries(t.db, 2026);
     expect(after!.ranked[0]).toMatchObject({
@@ -213,5 +224,94 @@ describe("import", () => {
     payload.candidates[1].artist = null as never; // violates NOT NULL in the second insert
     await expect(importCandidates(t.db, payload)).rejects.toThrow();
     expect(await t.db.query("SELECT 1 FROM entries")).toHaveLength(0);
+  });
+});
+
+describe("ranked import (v2)", () => {
+  const v2 = () => importSchema.parse(structuredClone(fixtureV2));
+  const rankedOf = async (year: number) =>
+    (await getListWithEntries(t.db, year))!.ranked.map((e) => [e.position, e.artist]);
+
+  it("parses the shared v2 fixture, including the album that isn't on Spotify", () => {
+    const p = v2();
+    expect(p.candidates.map((c) => c.rank)).toEqual([1, 2]);
+    expect(p.candidates[1]).toMatchObject({ spotify_album_id: expect.stringMatching(/^ext:/), tracks: [], scrobbles: null });
+  });
+
+  it("puts the albums straight onto the list in rank order", async () => {
+    expect(await importCandidates(t.db, v2())).toEqual({ created: 2, updated: 0, ranked: 2 });
+    expect(await rankedOf(2025)).toEqual([[1, "Ryan Davis & the Roadhouse Band"], [2, "Frog Eyes"]]);
+    const list = await getListWithEntries(t.db, 2025);
+    expect(list!.shortlist).toHaveLength(0);
+    expect(list!.ranked[1]).toMatchObject({ spotify_url: "https://frogeyes.bandcamp.com/album/the-open-up", scrobbles: null });
+  });
+
+  it("a re-import with new ranks reorders but keeps picks, text and label", async () => {
+    await importCandidates(t.db, v2());
+    const [ryan] = (await getListWithEntries(t.db, 2025))!.ranked;
+    await updateEntry(t.db, ryan.id, { blurb: "mine", label: "my label", picks: ["t25a2"] });
+    const swapped = v2();
+    swapped.candidates[0].rank = 2;
+    swapped.candidates[1].rank = 1;
+    expect(await importCandidates(t.db, swapped)).toEqual({ created: 0, updated: 2, ranked: 2 });
+    expect(await rankedOf(2025)).toEqual([[1, "Frog Eyes"], [2, "Ryan Davis & the Roadhouse Band"]]);
+    expect((await getListWithEntries(t.db, 2025))!.ranked[1]).toMatchObject({ blurb: "mine", label: "my label", picks: ["t25a2"] });
+  });
+
+  it("albums ranked before but missing from the import go back to the shortlist", async () => {
+    const extra = await addEntry(t.db, 2025, album({ album: "Dropped" }));
+    await placeEntry(t.db, extra.id, 1);
+    await importCandidates(t.db, v2());
+    const list = await getListWithEntries(t.db, 2025);
+    expect(list!.ranked.map((e) => e.position)).toEqual([1, 2]);
+    expect(list!.shortlist.map((e) => e.album)).toEqual(["Dropped"]);
+  });
+
+  it("a ranked album you had dismissed comes back onto the list", async () => {
+    await importCandidates(t.db, v2());
+    const frog = (await getListWithEntries(t.db, 2025))!.ranked[1];
+    await placeEntry(t.db, frog.id, "dismissed");
+    await importCandidates(t.db, v2());
+    expect(await rankedOf(2025)).toEqual([[1, "Ryan Davis & the Roadhouse Band"], [2, "Frog Eyes"]]);
+  });
+
+  it("null play counts keep the ones already there", async () => {
+    const seeded = importSchema.parse({ ...structuredClone(fixture), year: 2025 });
+    seeded.candidates[0].spotify_album_id = "alb25a";
+    await importCandidates(t.db, seeded);
+    await importCandidates(t.db, v2());
+    expect((await getListWithEntries(t.db, 2025))!.ranked[0]).toMatchObject({ scrobbles: 30, listens: 15 });
+  });
+
+  it("unranked v2 candidates still go to the shortlist", async () => {
+    const p = v2();
+    delete p.candidates[1].rank;
+    expect(await importCandidates(t.db, p)).toEqual({ created: 2, updated: 0, ranked: 1 });
+    expect((await getListWithEntries(t.db, 2025))!.shortlist.map((e) => e.artist)).toEqual(["Frog Eyes"]);
+  });
+
+  it.each([
+    ["a gap", [1, 3]],
+    ["a repeat", [1, 1]],
+    ["not starting at 1", [2, 3]],
+  ])("refuses ranks with %s and writes nothing", async (_name, ranks) => {
+    const p = v2();
+    p.candidates.forEach((c, i) => (c.rank = ranks[i]));
+    await expect(importCandidates(t.db, p)).rejects.toThrow(Invalid);
+    expect(await t.db.query("SELECT 1 FROM entries")).toHaveLength(0);
+  });
+
+  it("refuses the same album twice in one import", () => {
+    const p = v2();
+    p.candidates[1].spotify_album_id = p.candidates[0].spotify_album_id;
+    expect(() => importedOrder(p)).toThrow("in the import twice");
+  });
+
+  it("lists years newest first, optionally only published ones", async () => {
+    await importCandidates(t.db, v2());
+    await ensureList(t.db, 2026);
+    await updateList(t.db, 2025, { published: true });
+    expect(await listYears(t.db)).toEqual([2026, 2025]);
+    expect(await listYears(t.db, { published: true })).toEqual([2025]);
   });
 });

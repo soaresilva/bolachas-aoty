@@ -1,30 +1,31 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AlbumList } from "@/components/AlbumList";
-import { FEATURED_YEAR } from "@/lib/config";
+import { adminYear } from "@/lib/config";
 import { getDb } from "@/lib/db";
 import { ensureList, getListWithEntries } from "@/lib/repo";
 import { requireAdminPage } from "../gate";
 
 // The page as it will look once published, read straight from the database.
-async function Preview() {
+async function Preview({ searchParams }: { searchParams: PageProps<"/admin/preview">["searchParams"] }) {
   await requireAdminPage();
-  await ensureList(getDb(), FEATURED_YEAR);
-  const list = (await getListWithEntries(getDb(), FEATURED_YEAR))!;
+  const year = adminYear((await searchParams).year);
+  await ensureList(getDb(), year);
+  const list = (await getListWithEntries(getDb(), year))!;
   return (
     <>
       <div className="sticky top-0 z-10 bg-amber-400 px-4 py-2 text-center text-sm font-medium text-black">
-        Preview{list.published ? " (published)" : " (draft, not public)"} · <Link href="/admin" className="underline">back to admin</Link>
+        Preview{list.published ? " (published)" : " (draft, not public)"} · <Link href={`/admin?year=${year}`} className="underline">back to admin</Link>
       </div>
       <AlbumList list={list} />
     </>
   );
 }
 
-export default function PreviewPage() {
+export default function PreviewPage({ searchParams }: PageProps<"/admin/preview">) {
   return (
     <Suspense fallback={<p className="p-6 text-zinc-500">Loading…</p>}>
-      <Preview />
+      <Preview searchParams={searchParams} />
     </Suspense>
   );
 }

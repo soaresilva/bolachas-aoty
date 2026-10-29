@@ -168,32 +168,74 @@ export async function addEntry(db: Db, year: number, album: NewEntry): Promise<E
   return row;
 }
 
-/** Applies an aoty_seed.py export. New albums land on the shortlist;
- * albums already there (in any status) only get their play counts and
- * tracklist refreshed. Rank, picks, text, label and dismissals are yours
- * and never touched, so re-running the seed is always safe. */
+/** The ranks of a v2 import, checked: null if no candidate has one, else
+ * the album ids in rank order. Ranks must be exactly 1..N and an album may
+ * appear only once in the payload. */
+export function importedOrder(payload: ImportPayload): string[] | null {
+  const ids = payload.candidates.map((c) => c.spotify_album_id);
+  const dupe = ids.find((id, i) => ids.indexOf(id) !== i);
+  if (dupe) throw new Invalid(`album ${dupe} is in the import twice`);
+  const ranked = payload.candidates.filter((c) => c.rank !== undefined);
+  if (ranked.length === 0) return null;
+  const sorted = [...ranked].sort((a, b) => a.rank! - b.rank!);
+  sorted.forEach((c, i) => {
+    if (c.rank !== i + 1) throw new Invalid(`ranks must be 1..${ranked.length} with no gaps or repeats`);
+  });
+  return sorted.map((c) => c.spotify_album_id);
+}
+
+/** Applies an import. New albums land on the shortlist; albums already
+ * there (in any status) only get their play counts and tracklist
+ * refreshed (a null play count keeps the old one). Rank, picks, text,
+ * label and dismissals are yours and never touched, so re-running the
+ * seed is always safe.
+ *
+ * A v2 import with ranks is a finished list: those ranks become the
+ * list's order, and albums ranked before but not in it go back to the
+ * shortlist. Re-running it is safe too: picks, text and labels stay. */
 export async function importCandidates(db: Db, payload: ImportPayload) {
+  const order = importedOrder(payload);
   return db.tx(async (tx) => {
     const list = await ensureList(tx, payload.year);
     let created = 0;
     let updated = 0;
+    const entryIds = new Map<string, number>();
     for (const c of payload.candidates) {
-      const [row] = await tx.query<{ inserted: boolean }>(
+      const [row] = await tx.query<{ id: number; inserted: boolean }>(
         `INSERT INTO entries (list_id, spotify_album_id, artist, album, label, release_date,
            cover_url, spotify_url, tracks, scrobbles, listens)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
          ON CONFLICT (list_id, spotify_album_id) DO UPDATE
-           SET scrobbles = EXCLUDED.scrobbles, listens = EXCLUDED.listens,
+           SET scrobbles = COALESCE(EXCLUDED.scrobbles, entries.scrobbles),
+               listens = COALESCE(EXCLUDED.listens, entries.listens),
                tracks = EXCLUDED.tracks, updated_at = now()
-         RETURNING (xmax = 0) AS inserted`,
+         RETURNING id, (xmax = 0) AS inserted`,
         [
           list.id, c.spotify_album_id, c.artist, c.album, c.label, c.release_date,
           c.cover_url, c.spotify_url, JSON.stringify(c.tracks), c.scrobbles, c.listens,
         ],
       );
+      entryIds.set(c.spotify_album_id, row.id);
       if (row.inserted) created++;
       else updated++;
     }
-    return { created, updated };
+    if (order) {
+      const ids = order.map((albumId) => entryIds.get(albumId)!);
+      await tx.query(
+        `UPDATE entries SET status = 'shortlist', position = NULL, updated_at = now()
+         WHERE list_id = $1 AND status = 'ranked' AND NOT (id = ANY($2::int[]))`,
+        [list.id, ids],
+      );
+      await writeOrder(tx, list.id, ids);
+    }
+    return { created, updated, ranked: order?.length ?? 0 };
   });
+}
+
+/** Every year that has a list, newest first; `published` limits it to the public ones. */
+export async function listYears(db: Db, { published = false } = {}): Promise<number[]> {
+  const rows = await db.query<{ year: number }>(
+    `SELECT year FROM lists ${published ? "WHERE published" : ""} ORDER BY year DESC`,
+  );
+  return rows.map((r) => r.year);
 }

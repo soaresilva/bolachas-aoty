@@ -30,6 +30,11 @@ export const fixture = JSON.parse(
   readFileSync(new URL("../contracts/fixtures/aoty_import_v1.json", import.meta.url), "utf8"),
 );
 
+/** v2: a finished ranked list (aoty_list.py), one album not on Spotify. */
+export const fixtureV2 = JSON.parse(
+  readFileSync(new URL("../contracts/fixtures/aoty_import_v2.json", import.meta.url), "utf8"),
+);
+
 let n = 0;
 export function album(over: Record<string, unknown> = {}) {
   n++;

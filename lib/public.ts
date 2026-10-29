@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { getDb } from "./db";
-import { getListWithEntries } from "./repo";
+import { getListWithEntries, listYears } from "./repo";
 import type { ListWithEntries } from "./types";
 
 /** The list as the public sees it: null unless published, candidates left out.
@@ -14,4 +14,10 @@ export async function getPublishedList(year: number): Promise<ListWithEntries | 
   await connection();
   const list = await getListWithEntries(getDb(), year);
   return list?.published ? { ...list, shortlist: [], dismissed: [] } : null;
+}
+
+/** Years with a published list, newest first, for the links between years. */
+export async function getPublishedYears(): Promise<number[]> {
+  await connection();
+  return listYears(getDb(), { published: true });
 }

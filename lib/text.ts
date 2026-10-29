@@ -19,3 +19,18 @@ export const trackUrl = (id: string) => `https://open.spotify.com/track/${id}`;
 export function pickedTracks<T extends { id: string }>(tracks: T[], picks: string[]): T[] {
   return picks.map((p) => tracks.find((t) => t.id === p)).filter((t): t is T => !!t);
 }
+
+/** Where an album link goes, for labels: "Spotify", "Bandcamp", or the
+ * bare host for anything else (albums not on Spotify are imported with
+ * their Bandcamp page instead). */
+export function linkSite(url: string): string {
+  let host: string;
+  try {
+    host = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "the web";
+  }
+  if (host === "open.spotify.com" || host.endsWith(".spotify.com")) return "Spotify";
+  if (host === "bandcamp.com" || host.endsWith(".bandcamp.com")) return "Bandcamp";
+  return host;
+}

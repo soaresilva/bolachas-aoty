@@ -9,7 +9,7 @@ import { POST as order } from "@/app/api/admin/lists/[year]/order/route";
 import { GET as getList, PATCH as patchList } from "@/app/api/admin/lists/[year]/route";
 import { SESSION_COOKIE, createSession } from "@/lib/auth";
 import { setDb } from "@/lib/db";
-import { fixture, testDb } from "./helpers";
+import { fixture, fixtureV2, testDb } from "./helpers";
 
 let t: Awaited<ReturnType<typeof testDb>>;
 let cookie: string;
@@ -115,8 +115,23 @@ describe("admin flow", () => {
     expect((await patchEntry(req({ unknown_field: 1 }), entry(jeff))).status).toBe(400);
     expect((await patchEntry(req("{not json"), entry(jeff))).status).toBe(400);
     expect((await order(req({ ids: [jeff, jeff] }), year)).status).toBe(400);
-    expect((await importRoute(req({ ...fixture, version: 2 }, { authorization: "Bearer tok" }), {})).status).toBe(400);
+    expect((await importRoute(req({ ...fixture, version: 3 }, { authorization: "Bearer tok" }), {})).status).toBe(400);
     expect((await place(req({ place: 1 }), entry(9999))).status).toBe(404);
     expect((await getList(req(), { params: Promise.resolve({ year: "nope" }) })).status).toBe(404);
+  });
+});
+
+describe("ranked import", () => {
+  it("the import token lands a finished list in rank order", async () => {
+    const res = await importRoute(req(fixtureV2, { authorization: "Bearer tok" }), {});
+    expect(await res.json()).toEqual({ created: 2, updated: 0, ranked: 2, year: 2025 });
+    const list = await (await getList(req(), { params: Promise.resolve({ year: "2025" }) })).json();
+    expect(list.ranked.map((e: { album: string }) => e.album)).toEqual(["New Threats From the Soul", "The Open Up"]);
+  });
+
+  it("bad ranks are a 400", async () => {
+    const bad = structuredClone(fixtureV2);
+    bad.candidates[1].rank = 5;
+    expect((await importRoute(req(bad, { authorization: "Bearer tok" }), {})).status).toBe(400);
   });
 });

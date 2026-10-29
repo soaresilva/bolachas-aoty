@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AlbumList } from "@/components/AlbumList";
 import { SiteShell } from "@/components/SiteShell";
-import { getPublishedList } from "@/lib/public";
+import { getPublishedList, getPublishedYears } from "@/lib/public";
 
 function yearOf(raw: string) {
   const year = Number(raw);
@@ -25,7 +25,7 @@ async function YearList({ params }: { params: PageProps<"/[year]">["params"] }) 
   const year = yearOf((await params).year);
   const list = year ? await getPublishedList(year) : null;
   if (!list) notFound();
-  return <AlbumList list={list} />;
+  return <AlbumList list={list} years={await getPublishedYears()} />;
 }
 
 export default function Page({ params }: PageProps<"/[year]">) {

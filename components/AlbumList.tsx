@@ -1,4 +1,4 @@
-import { paragraphs, pickedTracks, trackUrl } from "@/lib/text";
+import { linkSite, paragraphs, pickedTracks, trackUrl } from "@/lib/text";
 import type { ListWithEntries } from "@/lib/types";
 import { SiteShell } from "./SiteShell";
 
@@ -19,8 +19,9 @@ function Text({ text, className }: { text: string; className?: string }) {
   );
 }
 
-/** The list as visitors see it. Shared by the public page and the admin preview. */
-export function AlbumList({ list }: { list: ListWithEntries }) {
+/** The list as visitors see it. Shared by the public page and the admin
+ * preview. `years` are the published lists, for the links between years. */
+export function AlbumList({ list, years = [] }: { list: ListWithEntries; years?: number[] }) {
   return (
     <SiteShell>
       <main className="mx-auto w-full max-w-4xl px-4 pb-20 sm:px-6">
@@ -34,6 +35,17 @@ export function AlbumList({ list }: { list: ListWithEntries }) {
           {list.intro && (
             <Text text={list.intro} className="mx-auto mt-6 max-w-prose space-y-4 text-lg leading-relaxed text-ink" />
           )}
+          {years.length > 1 && (
+            <nav aria-label="Other years" className="mt-8 flex justify-center gap-4 text-base font-bold">
+              {years.map((y) =>
+                y === list.year ? (
+                  <span key={y} aria-current="page" className="text-navy">{y}</span>
+                ) : (
+                  <a key={y} href={`/${y}`} className="text-ink underline hover:text-navy">{y}</a>
+                ),
+              )}
+            </nav>
+          )}
         </header>
 
         <ol className="divide-y divide-black/15 border-t border-black/15">
@@ -41,8 +53,8 @@ export function AlbumList({ list }: { list: ListWithEntries }) {
             const picks = pickedTracks(e.tracks, e.picks);
             return (
               <li key={e.id} id={`n${e.position}`} className="grid gap-6 py-10 sm:grid-cols-[260px_1fr] sm:gap-8">
-                <a href={e.spotify_url} className="block self-start" aria-label={`${e.artist}, ${e.album} on Spotify`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element -- Spotify's CDN serves sized covers already */}
+                <a href={e.spotify_url} className="block self-start" aria-label={`${e.artist}, ${e.album} on ${linkSite(e.spotify_url)}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Spotify's and Bandcamp's CDNs serve sized covers already */}
                   <img
                     src={e.cover_url}
                     alt=""
