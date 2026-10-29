@@ -124,7 +124,7 @@ describe("admin flow", () => {
 describe("ranked import", () => {
   it("the import token lands a finished list in rank order", async () => {
     const res = await importRoute(req(fixtureV2, { authorization: "Bearer tok" }), {});
-    expect(await res.json()).toEqual({ created: 2, updated: 0, ranked: 2, year: 2025 });
+    expect(await res.json()).toEqual({ created: 2, updated: 0, ranked: 2, filled: { picks: 1, blurbs: 1, links: true }, year: 2025 });
     const list = await (await getList(req(), { params: Promise.resolve({ year: "2025" }) })).json();
     expect(list.ranked.map((e: { album: string }) => e.album)).toEqual(["New Threats From the Soul", "The Open Up"]);
   });

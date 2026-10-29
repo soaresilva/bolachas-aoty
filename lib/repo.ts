@@ -18,7 +18,7 @@ export function defaultTitle(year: number) {
 
 export async function getList(db: Db, year: number): Promise<List | null> {
   const [row] = await db.query<List>(
-    "SELECT id, year, title, intro, published FROM lists WHERE year = $1",
+    "SELECT id, year, title, intro, published, links FROM lists WHERE year = $1",
     [year],
   );
   return row ?? null;
@@ -51,13 +51,13 @@ export async function getListWithEntries(db: Db, year: number): Promise<ListWith
 export async function updateList(
   db: Db,
   year: number,
-  patch: Partial<Pick<List, "title" | "intro" | "published">>,
+  patch: Partial<Pick<List, "title" | "intro" | "published" | "links">>,
 ): Promise<List> {
   const list = await ensureList(db, year);
   const next = { ...list, ...patch };
   await db.query(
-    "UPDATE lists SET title = $2, intro = $3, published = $4, updated_at = now() WHERE id = $1",
-    [list.id, next.title, next.intro, next.published],
+    "UPDATE lists SET title = $2, intro = $3, published = $4, links = $5::jsonb, updated_at = now() WHERE id = $1",
+    [list.id, next.title, next.intro, next.published, JSON.stringify(next.links)],
   );
   return (await getList(db, year))!;
 }
@@ -192,13 +192,18 @@ export function importedOrder(payload: ImportPayload): string[] | null {
  *
  * A v2 import with ranks is a finished list: those ranks become the
  * list's order, and albums ranked before but not in it go back to the
- * shortlist. Re-running it is safe too: picks, text and labels stay. */
+ * shortlist. Re-running it is safe too: picks, text and labels stay.
+ *
+ * A v2 import's picks, blurbs and links only fill what's still empty:
+ * the first import sets them, later ones never overwrite an edit. */
 export async function importCandidates(db: Db, payload: ImportPayload) {
   const order = importedOrder(payload);
   return db.tx(async (tx) => {
     const list = await ensureList(tx, payload.year);
     let created = 0;
     let updated = 0;
+    let filledPicks = 0;
+    let filledBlurbs = 0;
     const entryIds = new Map<string, number>();
     for (const c of payload.candidates) {
       const [row] = await tx.query<{ id: number; inserted: boolean }>(
@@ -218,7 +223,25 @@ export async function importCandidates(db: Db, payload: ImportPayload) {
       entryIds.set(c.spotify_album_id, row.id);
       if (row.inserted) created++;
       else updated++;
+      if (c.picks?.length) {
+        filledPicks += (await tx.query(
+          "UPDATE entries SET picks = $2::jsonb WHERE id = $1 AND picks = '[]'::jsonb RETURNING id",
+          [row.id, JSON.stringify(c.picks)],
+        )).length;
+      }
+      if (c.blurb) {
+        filledBlurbs += (await tx.query(
+          "UPDATE entries SET blurb = $2 WHERE id = $1 AND blurb = '' RETURNING id",
+          [row.id, c.blurb],
+        )).length;
+      }
     }
+    const filledLinks = payload.links?.length
+      ? (await tx.query(
+          "UPDATE lists SET links = $2::jsonb WHERE id = $1 AND links = '[]'::jsonb RETURNING id",
+          [list.id, JSON.stringify(payload.links)],
+        )).length > 0
+      : false;
     if (order) {
       const ids = order.map((albumId) => entryIds.get(albumId)!);
       await tx.query(
@@ -228,7 +251,10 @@ export async function importCandidates(db: Db, payload: ImportPayload) {
       );
       await writeOrder(tx, list.id, ids);
     }
-    return { created, updated, ranked: order?.length ?? 0 };
+    return {
+      created, updated, ranked: order?.length ?? 0,
+      filled: { picks: filledPicks, blurbs: filledBlurbs, links: filledLinks },
+    };
   });
 }
 

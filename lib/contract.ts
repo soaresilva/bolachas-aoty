@@ -8,12 +8,20 @@ import { z } from "zod";
 //     and allows null scrobbles/listens (a list made by hand has no play
 //     counts). spotify_album_id may be "ext:<url>" for an album that isn't
 //     on Spotify; its spotify_url then points wherever it is (Bandcamp).
+//     Optional `picks` and `blurb` per candidate and `links` for the list
+//     only fill fields that are still empty on the site, never your edits.
 
 export const trackSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
   track_number: z.number().int(),
   duration_ms: z.number().int(),
+});
+
+/** A link shown under the list's intro, e.g. the year's playlist. */
+export const linkSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  url: z.url({ protocol: /^https$/ }).max(500),
 });
 
 export const candidateSchema = z.object({
@@ -29,6 +37,8 @@ export const candidateSchema = z.object({
   listens: z.number().nonnegative().nullable(),
   tracks: z.array(trackSchema),
   rank: z.number().int().min(1).optional(),
+  picks: z.array(z.string().min(1)).max(2).optional(),
+  blurb: z.string().max(5000).optional(),
 });
 
 export const importSchema = z
@@ -37,12 +47,20 @@ export const importSchema = z
     year: z.number().int().min(2000).max(2100),
     generated_at: z.string(),
     candidates: z.array(candidateSchema).max(500),
+    links: z.array(linkSchema).max(10).optional(),
   })
   .superRefine((p, ctx) => {
-    if (p.version !== 1) return;
+    if (p.version === 1 && p.links) {
+      ctx.addIssue({ code: "custom", path: ["links"], message: "links need version 2" });
+    }
     p.candidates.forEach((c, i) => {
-      if (c.rank !== undefined || c.scrobbles === null || c.listens === null) {
-        ctx.addIssue({ code: "custom", path: ["candidates", i], message: "rank and null play counts need version 2" });
+      const v2Only = c.rank !== undefined || c.scrobbles === null || c.listens === null || c.picks || c.blurb !== undefined;
+      if (p.version === 1 && v2Only) {
+        ctx.addIssue({ code: "custom", path: ["candidates", i], message: "rank, picks, blurb and null play counts need version 2" });
+      }
+      const ids = new Set(c.tracks.map((t) => t.id));
+      if (c.picks && (new Set(c.picks).size !== c.picks.length || c.picks.some((id) => !ids.has(id)))) {
+        ctx.addIssue({ code: "custom", path: ["candidates", i, "picks"], message: "picks must be two different tracks of the album" });
       }
     });
   });
@@ -70,6 +88,7 @@ export const listPatchSchema = z
     title: z.string().max(200),
     intro: z.string().max(10000),
     published: z.boolean(),
+    links: z.array(linkSchema).max(10),
   })
   .partial()
   .strict();

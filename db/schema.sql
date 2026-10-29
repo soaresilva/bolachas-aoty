@@ -42,3 +42,6 @@ CREATE TABLE IF NOT EXISTS entries (
 );
 
 CREATE INDEX IF NOT EXISTS entries_list_status ON entries (list_id, status, position);
+
+-- Added for 2025: links shown under the intro (the year's playlists).
+ALTER TABLE lists ADD COLUMN IF NOT EXISTS links jsonb NOT NULL DEFAULT '[]';

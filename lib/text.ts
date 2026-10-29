@@ -20,6 +20,25 @@ export function pickedTracks<T extends { id: string }>(tracks: T[], picks: strin
   return picks.map((p) => tracks.find((t) => t.id === p)).filter((t): t is T => !!t);
 }
 
+/** The admin's links box: one "Label | URL" per line. A line without a
+ * label uses the URL's site. */
+export function parseLinks(text: string): { label: string; url: string }[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const bar = line.lastIndexOf("|");
+      const url = (bar === -1 ? line : line.slice(bar + 1)).trim();
+      const label = bar === -1 ? linkSite(url) : line.slice(0, bar).trim();
+      return { label, url };
+    });
+}
+
+export function formatLinks(links: { label: string; url: string }[]): string {
+  return links.map((l) => `${l.label} | ${l.url}`).join("\n");
+}
+
 /** Where an album link goes, for labels: "Spotify", "Bandcamp", or the
  * bare host for anything else (albums not on Spotify are imported with
  * their Bandcamp page instead). */

@@ -188,7 +188,7 @@ describe("import", () => {
   });
 
   it("creates shortlist entries ordered by listens", async () => {
-    expect(await importCandidates(t.db, importSchema.parse(fixture))).toEqual({ created: 2, updated: 0, ranked: 0 });
+    expect(await importCandidates(t.db, importSchema.parse(fixture))).toMatchObject({ created: 2, updated: 0, ranked: 0 });
     const list = await getListWithEntries(t.db, 2026);
     expect(list!.shortlist.map((e) => [e.album, e.scrobbles, e.listens])).toEqual([
       ["Thanks, Sorry!", 30, 15],
@@ -209,7 +209,7 @@ describe("import", () => {
     again.candidates[0].scrobbles = 50;
     again.candidates[0].listens = 25;
     again.candidates[0].label = "Polyvinyl";
-    expect(await importCandidates(t.db, again)).toEqual({ created: 0, updated: 2, ranked: 0 });
+    expect(await importCandidates(t.db, again)).toMatchObject({ created: 0, updated: 2, ranked: 0 });
 
     const after = await getListWithEntries(t.db, 2026);
     expect(after!.ranked[0]).toMatchObject({
@@ -239,7 +239,9 @@ describe("ranked import (v2)", () => {
   });
 
   it("puts the albums straight onto the list in rank order", async () => {
-    expect(await importCandidates(t.db, v2())).toEqual({ created: 2, updated: 0, ranked: 2 });
+    expect(await importCandidates(t.db, v2())).toEqual({
+      created: 2, updated: 0, ranked: 2, filled: { picks: 1, blurbs: 1, links: true },
+    });
     expect(await rankedOf(2025)).toEqual([[1, "Ryan Davis & the Roadhouse Band"], [2, "Frog Eyes"]]);
     const list = await getListWithEntries(t.db, 2025);
     expect(list!.shortlist).toHaveLength(0);
@@ -253,7 +255,7 @@ describe("ranked import (v2)", () => {
     const swapped = v2();
     swapped.candidates[0].rank = 2;
     swapped.candidates[1].rank = 1;
-    expect(await importCandidates(t.db, swapped)).toEqual({ created: 0, updated: 2, ranked: 2 });
+    expect(await importCandidates(t.db, swapped)).toMatchObject({ created: 0, updated: 2, ranked: 2 });
     expect(await rankedOf(2025)).toEqual([[1, "Frog Eyes"], [2, "Ryan Davis & the Roadhouse Band"]]);
     expect((await getListWithEntries(t.db, 2025))!.ranked[1]).toMatchObject({ blurb: "mine", label: "my label", picks: ["t25a2"] });
   });
@@ -286,7 +288,7 @@ describe("ranked import (v2)", () => {
   it("unranked v2 candidates still go to the shortlist", async () => {
     const p = v2();
     delete p.candidates[1].rank;
-    expect(await importCandidates(t.db, p)).toEqual({ created: 2, updated: 0, ranked: 1 });
+    expect(await importCandidates(t.db, p)).toMatchObject({ created: 2, updated: 0, ranked: 1 });
     expect((await getListWithEntries(t.db, 2025))!.shortlist.map((e) => e.artist)).toEqual(["Frog Eyes"]);
   });
 
@@ -313,5 +315,52 @@ describe("ranked import (v2)", () => {
     await updateList(t.db, 2025, { published: true });
     expect(await listYears(t.db)).toEqual([2026, 2025]);
     expect(await listYears(t.db, { published: true })).toEqual([2025]);
+  });
+});
+
+// The raw fixture JSON, mutated into invalid shapes the schema must refuse.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately untyped
+type Fixture = any;
+
+describe("v2 picks, blurbs and links", () => {
+  const v2 = () => importSchema.parse(structuredClone(fixtureV2));
+
+  it("the first import fills them", async () => {
+    await importCandidates(t.db, v2());
+    const list = await getListWithEntries(t.db, 2025);
+    expect(list!.ranked[0]).toMatchObject({ picks: ["t25a1", "t25a2"], blurb: expect.stringContaining("favorite album of 2025") });
+    expect(list!.ranked[1]).toMatchObject({ picks: [], blurb: "" });
+    expect(list!.links.map((l) => l.label)).toEqual(["Top 50 2025", "Bolachas Now Playing 2025"]);
+  });
+
+  it("a re-import never overwrites what you edited, and refills nothing you kept", async () => {
+    await importCandidates(t.db, v2());
+    const [ryan] = (await getListWithEntries(t.db, 2025))!.ranked;
+    await updateEntry(t.db, ryan.id, { blurb: "rewritten", picks: ["t25a2"] });
+    await updateList(t.db, 2025, { links: [{ label: "Mine", url: "https://example.org/" }] });
+    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 0, blurbs: 0, links: false });
+    const list = await getListWithEntries(t.db, 2025);
+    expect(list!.ranked[0]).toMatchObject({ blurb: "rewritten", picks: ["t25a2"] });
+    expect(list!.links).toEqual([{ label: "Mine", url: "https://example.org/" }]);
+  });
+
+  it("fills picks and text on an album imported earlier without them", async () => {
+    const bare = v2();
+    delete bare.links;
+    bare.candidates.forEach((c) => { delete c.picks; delete c.blurb; });
+    await importCandidates(t.db, bare);
+    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 1, blurbs: 1, links: true });
+  });
+
+  it.each([
+    ["a pick that isn't on the album", (p: Fixture) => (p.candidates[0].picks = ["nope"])],
+    ["the same pick twice", (p: Fixture) => (p.candidates[0].picks = ["t25a1", "t25a1"])],
+    ["three picks", (p: Fixture) => (p.candidates[0].picks = ["t25a1", "t25a2", "t25a1"])],
+    ["a link that isn't https", (p: Fixture) => (p.links[0].url = "javascript:alert(1)")],
+    ["picks in a v1 payload", (p: Fixture) => { p.version = 1; p.candidates.forEach((c: Fixture) => { delete c.rank; c.scrobbles = 1; c.listens = 1; delete c.blurb; delete c.links; }); delete p.links; }],
+  ])("refuses %s", (_name, mutate) => {
+    const p = structuredClone(fixtureV2);
+    mutate(p);
+    expect(importSchema.safeParse(p).success).toBe(false);
   });
 });

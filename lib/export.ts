@@ -33,5 +33,6 @@ export function renderWordPressHtml(list: ListWithEntries): string {
       .filter(Boolean)
       .join("\n");
   });
-  return [`<!-- ${escapeHtml(list.title)} -->`, list.intro ? p(list.intro) : "", ...items].filter(Boolean).join("\n\n") + "\n";
+  const links = list.links.map((l) => `<a href="${escapeHtml(l.url)}">${escapeHtml(l.label)}</a>`).join(" · ");
+  return [`<!-- ${escapeHtml(list.title)} -->`, list.intro ? p(list.intro) : "", links ? `<p>${links}</p>` : "", ...items].filter(Boolean).join("\n\n") + "\n";
 }

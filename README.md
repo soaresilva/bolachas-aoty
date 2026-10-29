@@ -3,7 +3,7 @@
 Bolachas' favorite albums of the year: a public, ranked list page plus a small
 admin for building it. Next.js on Vercel, Postgres (Neon) for storage.
 
-- **Public:** `/<year>` (e.g. `/2026`). Each album shows its position, cover, artist, album, label, up to two key tracks (linked to Spotify) and your text. `/` redirects to the featured year (`FEATURED_YEAR`), each year has a share card at `/<year>/opengraph-image`, and once more than one year is published the header links between them.
+- **Public:** `/<year>` (e.g. `/2026`). Each album shows its position, cover, artist, album, label, up to two key tracks (linked to Spotify) and your text. `/` redirects to the featured year (`FEATURED_YEAR`), each year has a share card at `/<year>/opengraph-image`, and once more than one year is published the header links between them. A list can carry links (the year's playlists), shown as buttons under the intro and in the WordPress export.
 - **Admin:** `/admin`, behind a single password. It opens the featured year; `/admin?year=2025` (or the year links in the header) edits another. It has:
   - a drag-and-drop ranked list (with up/down buttons and "move to #N" too)
   - a shortlist of candidates sorted by how much you listened to them
@@ -99,7 +99,7 @@ What's covered:
 - `tests/routes.test.ts`: every admin route refuses unauthenticated requests, the import token opens only the import route, the full admin flow works end to end, and bad input returns 400s and 404s.
 - `tests/auth.test.ts`, `tests/spotify.test.ts`, `tests/export.test.ts`, `tests/text.test.ts`: sessions, the Spotify client, HTML escaping in the WordPress export, link labels and the admin's `?year`.
 
-On a Pi short of memory, PGlite suites can get OOM-killed when vitest runs files in parallel; `npx vitest run --no-file-parallelism` runs them one at a time.
+Test files run one at a time (`fileParallelism: false` in `vitest.config.mts`): each DB suite starts its own PGlite, and several at once got OOM-killed on the Pi.
 
 `scripts/smoke.mjs` is the slower end-to-end check, run before shipping and against production after a deploy. It exercises auth refusals, every edit, publish/unpublish, and that the public page shows each change on the very first request. On a non-local URL it only reads unless `SMOKE_WRITE=1`.
 
@@ -122,9 +122,10 @@ The reply is `{"created": N, "updated": N, "ranked": N, "year": 2026}`.
 **v2** (`aoty_list.py`, a finished list) is the same shape plus:
 - `rank` on a candidate. Ranks must be exactly 1..N. They become the list's order: ranked albums missing from the import go back to the shortlist, and a dismissed album with a rank comes back onto the list. Picks, text and labels are still kept, so a re-import is safe. Candidates without a rank go to the shortlist as in v1.
 - `scrobbles` and `listens` may be `null` (a hand-made list has no play counts).
+- Optional `picks` (up to two track ids of that album) and `blurb` per candidate, and `links` (`[{label, url}]`, https only) for the list. They only fill what's still empty: the first import sets them, and a re-import never overwrites a pick, text or link you edited. (If you clear one on purpose, the next import fills it again.) The reply reports what was filled: `"filled": {"picks": N, "blurbs": N, "links": true}`.
 - `spotify_album_id` may be `ext:<url>` for an album that isn't on Spotify (2025: Frog Eyes and Hotline TNT pulled their catalogs). Its `spotify_url` is then the Bandcamp page, `tracks` is empty (so no key tracks), and the page labels the link by site ("on Bandcamp").
 
-v1 payloads can't carry ranks or null counts. The schema is in `lib/contract.ts`. `contracts/fixtures/aoty_import_v1.json` and `aoty_import_v2.json` are the shared fixtures: spotify-curator's tests check that `aoty_seed.build_payload` and `aoty_list.build_payload` produce them, and this repo's tests parse and import them. A breaking change needs a new version on both sides.
+v1 payloads can't carry ranks, picks, blurbs, links or null counts. The schema is in `lib/contract.ts`. `contracts/fixtures/aoty_import_v1.json` and `aoty_import_v2.json` are the shared fixtures: spotify-curator's tests check that `aoty_seed.build_payload` and `aoty_list.build_payload` produce them, and this repo's tests parse and import them. A breaking change needs a new version on both sides.
 
 ## WordPress
 

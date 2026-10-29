@@ -11,8 +11,8 @@ const entry = (over: Partial<Entry>): Entry => ({
   picks: [], blurb: "", scrobbles: null, listens: null, ...over,
 });
 
-const list = (ranked: Entry[], intro = ""): ListWithEntries => ({
-  id: 1, year: 2026, title: "Favorite albums of 2026", intro, published: true, ranked, shortlist: [], dismissed: [],
+const list = (ranked: Entry[], intro = "", links: ListWithEntries["links"] = []): ListWithEntries => ({
+  id: 1, year: 2026, title: "Favorite albums of 2026", intro, published: true, links, ranked, shortlist: [], dismissed: [],
 });
 
 describe("paragraphs", () => {
@@ -51,5 +51,16 @@ describe("renderWordPressHtml", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("a &quot;b&quot; &amp; &lt;i&gt;c&lt;/i&gt;");
+  });
+});
+
+describe("export links", () => {
+  it("puts the list's links under the intro, escaped", () => {
+    const html = renderWordPressHtml(list([entry({})], "Intro.", [
+      { label: "Top 50 & more", url: "https://open.spotify.com/playlist/p1" },
+      { label: "Now Playing", url: "https://open.spotify.com/playlist/p2" },
+    ]));
+    expect(html).toContain('<p><a href="https://open.spotify.com/playlist/p1">Top 50 &amp; more</a> · <a href="https://open.spotify.com/playlist/p2">Now Playing</a></p>');
+    expect(html.indexOf("Intro.")).toBeLessThan(html.indexOf("Top 50"));
   });
 });

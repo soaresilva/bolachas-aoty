@@ -21,7 +21,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { placeTarget } from "@/lib/order";
 import type { SearchHit } from "@/lib/spotify";
-import { linkSite } from "@/lib/text";
+import { formatLinks, linkSite, parseLinks } from "@/lib/text";
 import type { Entry, ListWithEntries } from "@/lib/types";
 
 type Place = number | "shortlist" | "dismissed";
@@ -174,7 +174,8 @@ type RunFn = (fn: () => Promise<unknown>) => Promise<void>;
 function ListSettings({ list, busy, run }: { list: ListWithEntries; busy: boolean; run: RunFn }) {
   const [title, setTitle] = useState(list.title);
   const [intro, setIntro] = useState(list.intro);
-  const dirty = title !== list.title || intro !== list.intro;
+  const [links, setLinks] = useState(formatLinks(list.links));
+  const dirty = title !== list.title || intro !== list.intro || links !== formatLinks(list.links);
   const patch = (body: object) => run(() => api(`/api/admin/lists/${list.year}`, { method: "PATCH", body }));
 
   return (
@@ -187,8 +188,12 @@ function ListSettings({ list, busy, run }: { list: ListWithEntries; busy: boolea
         <span className="text-sm text-zinc-400">Intro (blank line = new paragraph)</span>
         <textarea className={`${input} min-h-24`} value={intro} onChange={(e) => setIntro(e.target.value)} />
       </label>
+      <label className="block">
+        <span className="text-sm text-zinc-400">Links under the intro, one per line: Label | https://… (e.g. the year&apos;s playlists)</span>
+        <textarea className={`${input} min-h-16 font-mono text-sm`} value={links} onChange={(e) => setLinks(e.target.value)} />
+      </label>
       <div className="flex flex-wrap items-center gap-3">
-        <button className={button} disabled={busy || !dirty} onClick={() => patch({ title, intro })}>Save</button>
+        <button className={button} disabled={busy || !dirty} onClick={() => patch({ title, intro, links: parseLinks(links) })}>Save</button>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

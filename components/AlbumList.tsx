@@ -35,6 +35,18 @@ export function AlbumList({ list, years = [] }: { list: ListWithEntries; years?:
           {list.intro && (
             <Text text={list.intro} className="mx-auto mt-6 max-w-prose space-y-4 text-lg leading-relaxed text-ink" />
           )}
+          {list.links.length > 0 && (
+            <ul className="mt-8 flex flex-wrap justify-center gap-2" aria-label="Playlists and links">
+              {list.links.map((l) => (
+                <li key={l.url}>
+                  <a href={l.url} className="inline-flex items-center gap-2 bg-black px-4 py-2 text-base font-medium text-sky hover:bg-navy hover:text-white">
+                    <span aria-hidden className="text-[0.6rem]">▶</span>
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
           {years.length > 1 && (
             <nav aria-label="Other years" className="mt-8 flex justify-center gap-4 text-base font-bold">
               {years.map((y) =>

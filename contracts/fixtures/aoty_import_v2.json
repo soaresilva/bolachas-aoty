@@ -15,10 +15,25 @@
       "scrobbles": null,
       "listens": null,
       "tracks": [
-        {"id": "t25a1", "name": "New Threats From the Soul", "track_number": 1, "duration_ms": 600000},
-        {"id": "t25a2", "name": "Monte Carlo / No Limits", "track_number": 2, "duration_ms": 420000}
+        {
+          "id": "t25a1",
+          "name": "New Threats From the Soul",
+          "track_number": 1,
+          "duration_ms": 600000
+        },
+        {
+          "id": "t25a2",
+          "name": "Monte Carlo / No Limits",
+          "track_number": 2,
+          "duration_ms": 420000
+        }
       ],
-      "rank": 1
+      "rank": 1,
+      "picks": [
+        "t25a1",
+        "t25a2"
+      ],
+      "blurb": "New Threats from the Soul is not only my favorite album of 2025, it's probably my favorite of the decade so far."
     },
     {
       "spotify_album_id": "ext:https://frogeyes.bandcamp.com/album/the-open-up",
@@ -33,6 +48,16 @@
       "listens": null,
       "tracks": [],
       "rank": 2
+    }
+  ],
+  "links": [
+    {
+      "label": "Top 50 2025",
+      "url": "https://open.spotify.com/playlist/0WP40Gy4D3y9t1YglQ98nI"
+    },
+    {
+      "label": "Bolachas Now Playing 2025",
+      "url": "https://open.spotify.com/playlist/2sWd7JwT5CWQHmXatd8BFb"
     }
   ]
 }

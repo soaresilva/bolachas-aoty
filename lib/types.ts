@@ -20,12 +20,15 @@ export type Entry = {
   listens: number | null;
 };
 
+export type Link = { label: string; url: string };
+
 export type List = {
   id: number;
   year: number;
   title: string;
   intro: string;
   published: boolean;
+  links: Link[];
 };
 
 export type ListWithEntries = List & { ranked: Entry[]; shortlist: Entry[]; dismissed: Entry[] };
