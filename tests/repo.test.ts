@@ -364,3 +364,19 @@ describe("v2 picks, blurbs and links", () => {
     expect(importSchema.safeParse(p).success).toBe(false);
   });
 });
+
+describe("fixing a typo by re-importing", () => {
+  it("a re-import corrects artist and album but keeps rank, picks, text and label", async () => {
+    const p = importSchema.parse(structuredClone(fixtureV2));
+    await importCandidates(t.db, p);
+    const [ryan] = (await getListWithEntries(t.db, 2025))!.ranked;
+    await updateEntry(t.db, ryan.id, { blurb: "mine", label: "my label", picks: ["t25a2"] });
+    p.candidates[0].artist = "Ryan Davis and the Roadhouse Band";
+    p.candidates[0].album = "New Threats from the Soul";
+    await importCandidates(t.db, p);
+    expect((await getListWithEntries(t.db, 2025))!.ranked[0]).toMatchObject({
+      position: 1, artist: "Ryan Davis and the Roadhouse Band", album: "New Threats from the Soul",
+      blurb: "mine", label: "my label", picks: ["t25a2"],
+    });
+  });
+});

@@ -186,7 +186,9 @@ export function importedOrder(payload: ImportPayload): string[] | null {
 
 /** Applies an import. New albums land on the shortlist; albums already
  * there (in any status) only get their play counts and tracklist
- * refreshed (a null play count keeps the old one). Rank, picks, text,
+ * refreshed (a null play count keeps the old one), and so are artist and
+ * album, which the admin can't edit: fixing a typo in the list's own
+ * spelling is a re-import. Rank, picks, text,
  * label and dismissals are yours and never touched, so re-running the
  * seed is always safe.
  *
@@ -213,6 +215,7 @@ export async function importCandidates(db: Db, payload: ImportPayload) {
          ON CONFLICT (list_id, spotify_album_id) DO UPDATE
            SET scrobbles = COALESCE(EXCLUDED.scrobbles, entries.scrobbles),
                listens = COALESCE(EXCLUDED.listens, entries.listens),
+               artist = EXCLUDED.artist, album = EXCLUDED.album,
                tracks = EXCLUDED.tracks, updated_at = now()
          RETURNING id, (xmax = 0) AS inserted`,
         [

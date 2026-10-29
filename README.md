@@ -117,7 +117,7 @@ Test files run one at a time (`fileParallelism: false` in `vitest.config.mts`): 
 
 The reply is `{"created": N, "updated": N, "ranked": N, "year": 2026}`.
 - New albums go to the shortlist.
-- For albums already present (any status), only `scrobbles`, `listens` and `tracks` are refreshed (a `null` count keeps the stored one). Rank, label, picks, text and dismissals are never touched, so re-running the seed is always safe.
+- For albums already present (any status), only `scrobbles`, `listens`, `tracks`, `artist` and `album` are refreshed (a `null` count keeps the stored one; artist and album aren't editable in the admin, so fixing a typo in a list is a re-import). Rank, label, picks, text and dismissals are never touched, so re-running the seed is always safe.
 
 **v2** (`aoty_list.py`, a finished list) is the same shape plus:
 - `rank` on a candidate. Ranks must be exactly 1..N. They become the list's order: ranked albums missing from the import go back to the shortlist, and a dismissed album with a rank comes back onto the list. Picks, text and labels are still kept, so a re-import is safe. Candidates without a rank go to the shortlist as in v1.
