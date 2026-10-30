@@ -29,6 +29,8 @@ export type List = {
   intro: string;
   published: boolean;
   links: Link[];
+  /** Positions past this are shown unnumbered, alphabetical by artist; null numbers all. */
+  unranked_after: number | null;
 };
 
 export type ListWithEntries = List & { ranked: Entry[]; shortlist: Entry[]; dismissed: Entry[] };

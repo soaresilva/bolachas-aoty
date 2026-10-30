@@ -240,7 +240,7 @@ describe("ranked import (v2)", () => {
 
   it("puts the albums straight onto the list in rank order", async () => {
     expect(await importCandidates(t.db, v2())).toEqual({
-      created: 2, updated: 0, ranked: 2, filled: { picks: 1, blurbs: 1, links: true },
+      created: 2, updated: 0, ranked: 2, filled: { picks: 1, blurbs: 1, links: true, unranked_after: true },
     });
     expect(await rankedOf(2025)).toEqual([[1, "Ryan Davis & the Roadhouse Band"], [2, "Frog Eyes"]]);
     const list = await getListWithEntries(t.db, 2025);
@@ -331,33 +331,37 @@ describe("v2 picks, blurbs and links", () => {
     expect(list!.ranked[0]).toMatchObject({ picks: ["t25a1", "t25a2"], blurb: expect.stringContaining("favorite album of 2025") });
     expect(list!.ranked[1]).toMatchObject({ picks: [], blurb: "" });
     expect(list!.links.map((l) => l.label)).toEqual(["Top 50 2025", "Bolachas Now Playing 2025"]);
+    expect(list!.unranked_after).toBe(1);
   });
 
   it("a re-import never overwrites what you edited, and refills nothing you kept", async () => {
     await importCandidates(t.db, v2());
     const [ryan] = (await getListWithEntries(t.db, 2025))!.ranked;
     await updateEntry(t.db, ryan.id, { blurb: "rewritten", picks: ["t25a2"] });
-    await updateList(t.db, 2025, { links: [{ label: "Mine", url: "https://example.org/" }] });
-    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 0, blurbs: 0, links: false });
+    await updateList(t.db, 2025, { links: [{ label: "Mine", url: "https://example.org/" }], unranked_after: 5 });
+    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 0, blurbs: 0, links: false, unranked_after: false });
     const list = await getListWithEntries(t.db, 2025);
     expect(list!.ranked[0]).toMatchObject({ blurb: "rewritten", picks: ["t25a2"] });
     expect(list!.links).toEqual([{ label: "Mine", url: "https://example.org/" }]);
+    expect(list!.unranked_after).toBe(5);
   });
 
   it("fills picks and text on an album imported earlier without them", async () => {
     const bare = v2();
     delete bare.links;
+    delete bare.unranked_after;
     bare.candidates.forEach((c) => { delete c.picks; delete c.blurb; });
     await importCandidates(t.db, bare);
-    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 1, blurbs: 1, links: true });
+    expect((await importCandidates(t.db, v2())).filled).toEqual({ picks: 1, blurbs: 1, links: true, unranked_after: true });
   });
 
   it.each([
     ["a pick that isn't on the album", (p: Fixture) => (p.candidates[0].picks = ["nope"])],
     ["the same pick twice", (p: Fixture) => (p.candidates[0].picks = ["t25a1", "t25a1"])],
     ["three picks", (p: Fixture) => (p.candidates[0].picks = ["t25a1", "t25a2", "t25a1"])],
+    ["unranked_after of zero", (p: Fixture) => (p.unranked_after = 0)],
     ["a link that isn't https", (p: Fixture) => (p.links[0].url = "javascript:alert(1)")],
-    ["picks in a v1 payload", (p: Fixture) => { p.version = 1; p.candidates.forEach((c: Fixture) => { delete c.rank; c.scrobbles = 1; c.listens = 1; delete c.blurb; delete c.links; }); delete p.links; }],
+    ["picks in a v1 payload", (p: Fixture) => { p.version = 1; p.candidates.forEach((c: Fixture) => { delete c.rank; c.scrobbles = 1; c.listens = 1; delete c.blurb; delete c.links; }); delete p.links; delete p.unranked_after; }],
   ])("refuses %s", (_name, mutate) => {
     const p = structuredClone(fixtureV2);
     mutate(p);

@@ -1,4 +1,4 @@
-import { splitRanked } from "@/lib/layout";
+import { splitNumbering, splitRanked } from "@/lib/layout";
 import { linkSite, paragraphs, pickedTracks, trackUrl } from "@/lib/text";
 import type { ListWithEntries } from "@/lib/types";
 import { SiteShell } from "./SiteShell";
@@ -22,9 +22,9 @@ function Text({ text, className }: { text: string; className?: string }) {
 
 type Entry = ListWithEntries["ranked"][number];
 
-function Cover({ e }: { e: Entry }) {
+function Cover({ e, compact = false }: { e: Entry; compact?: boolean }) {
   return (
-    <a href={e.spotify_url} className="block self-start" aria-label={`${e.artist}, ${e.album} on ${linkSite(e.spotify_url)}`}>
+    <a href={e.spotify_url} className={`block self-start ${compact ? "sm:max-w-[260px]" : ""}`} aria-label={`${e.artist}, ${e.album} on ${linkSite(e.spotify_url)}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- Spotify's and Bandcamp's CDNs serve sized covers already */}
       <img
         src={e.cover_url}
@@ -38,17 +38,19 @@ function Cover({ e }: { e: Entry }) {
   );
 }
 
-function Details({ e, compact = false }: { e: Entry; compact?: boolean }) {
+function Details({ e, compact = false, numbered = true }: { e: Entry; compact?: boolean; numbered?: boolean }) {
   const picks = pickedTracks(e.tracks, e.picks);
   return (
     <div className="min-w-0">
-      <p
-        className={`${compact ? "text-4xl" : "text-6xl"} font-extrabold leading-none tracking-tighter tabular-nums text-navy`}
-        aria-label={`Number ${e.position}`}
-      >
-        {e.position}
-      </p>
-      <h2 className={`${compact ? "mt-3 text-2xl" : "mt-4 text-3xl"} font-extrabold tracking-tight`}>{e.artist}</h2>
+      {numbered && (
+        <p
+          className={`${compact ? "text-4xl" : "text-6xl"} font-extrabold leading-none tracking-tighter tabular-nums text-navy`}
+          aria-label={`Number ${e.position}`}
+        >
+          {e.position}
+        </p>
+      )}
+      <h2 className={`${numbered ? (compact ? "mt-3" : "mt-4") : "mt-0"} ${compact ? "text-2xl" : "text-3xl"} font-extrabold tracking-tight`}>{e.artist}</h2>
       <p className={`mt-1 ${compact ? "text-lg" : "text-xl"} italic text-ink`}>{e.album}</p>
       {e.label && <p className="mt-3 text-sm font-bold uppercase tracking-wider text-ink/80">{e.label}</p>}
       {picks.length > 0 && (
@@ -75,7 +77,8 @@ function Details({ e, compact = false }: { e: Entry; compact?: boolean }) {
 /** The list as visitors see it. Shared by the public page and the admin
  * preview. `years` are the published lists, for the links between years. */
 export function AlbumList({ list, years = [] }: { list: ListWithEntries; years?: number[] }) {
-  const { top, rest } = splitRanked(list.ranked);
+  const { numbered, alphabetical } = splitNumbering(list.ranked, list.unranked_after);
+  const { top, rest } = splitRanked(numbered);
   return (
     <SiteShell>
       <main className="mx-auto w-full max-w-4xl px-4 pb-20 sm:px-6">
@@ -127,13 +130,31 @@ export function AlbumList({ list, years = [] }: { list: ListWithEntries; years?:
           <ol className="grid gap-x-8 gap-y-12 border-t border-black/15 pt-10 sm:grid-cols-2">
             {rest.map((e) => (
               <li key={e.id} id={`n${e.position}`} className="min-w-0">
-                <Cover e={e} />
+                <Cover e={e} compact />
                 <div className="mt-5">
                   <Details e={e} compact />
                 </div>
               </li>
             ))}
           </ol>
+        )}
+
+        {alphabetical.length > 0 && (
+          <section aria-labelledby="alphabetical" className="mt-14 border-t border-black/15 pt-10">
+            <h2 id="alphabetical" className="mb-10 text-center text-2xl font-extrabold tracking-tight">
+              And {alphabetical.length} more favorites, in alphabetical order
+            </h2>
+            <ul className="grid gap-x-8 gap-y-12 sm:grid-cols-2">
+              {alphabetical.map((e) => (
+                <li key={e.id} id={`a${e.id}`} className="min-w-0">
+                  <Cover e={e} compact />
+                  <div className="mt-5">
+                    <Details e={e} compact numbered={false} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </main>
     </SiteShell>

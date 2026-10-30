@@ -1,3 +1,4 @@
+import { splitNumbering } from "./layout";
 import { escapeHtml, paragraphs, pickedTracks, trackUrl } from "./text";
 import type { ListWithEntries } from "./types";
 
@@ -12,7 +13,9 @@ const p = (text: string) =>
     .join("\n");
 
 export function renderWordPressHtml(list: ListWithEntries): string {
-  const items = list.ranked.map((e) => {
+  const { numbered, alphabetical } = splitNumbering(list.ranked, list.unranked_after);
+  const items = [...numbered, ...alphabetical].map((e) => {
+    const unnumbered = alphabetical.includes(e);
     const picks = pickedTracks(e.tracks, e.picks)
       .map((t) => `<a href="${trackUrl(t.id)}">${escapeHtml(t.name)}</a>`)
       .join(" · ");
@@ -21,7 +24,7 @@ export function renderWordPressHtml(list: ListWithEntries): string {
       `<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin:0 0 40px">`,
       `<a href="${escapeHtml(e.spotify_url)}"><img src="${escapeHtml(e.cover_url)}" alt="${alt}" width="240" height="240" style="width:240px;height:240px;object-fit:cover;border-radius:4px" loading="lazy"></a>`,
       `<div style="flex:1;min-width:240px">`,
-      `<p style="font-size:2.5em;font-weight:800;line-height:1;margin:0 0 8px">${e.position}</p>`,
+      unnumbered ? "" : `<p style="font-size:2.5em;font-weight:800;line-height:1;margin:0 0 8px">${e.position}</p>`,
       `<h3 style="margin:0">${escapeHtml(e.artist)}</h3>`,
       `<p style="margin:0;font-size:1.25em"><em>${escapeHtml(e.album)}</em></p>`,
       e.label ? `<p style="margin:4px 0 0;opacity:.7">${escapeHtml(e.label)}</p>` : "",

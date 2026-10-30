@@ -10,6 +10,8 @@ import { z } from "zod";
 //     on Spotify; its spotify_url then points wherever it is (Bandcamp).
 //     Optional `picks` and `blurb` per candidate and `links` for the list
 //     only fill fields that are still empty on the site, never your edits.
+//     Optional `unranked_after` (list-level): positions past it are shown
+//     unnumbered, alphabetical by artist. Filled the same way, only while unset.
 
 export const trackSchema = z.object({
   id: z.string().min(1),
@@ -23,6 +25,9 @@ export const linkSchema = z.object({
   label: z.string().trim().min(1).max(80),
   url: z.url({ protocol: /^https$/ }).max(500),
 });
+
+/** Positions past this number are listed alphabetically without a number. */
+export const unrankedAfterSchema = z.number().int().min(1).max(500).nullable();
 
 export const candidateSchema = z.object({
   spotify_album_id: z.string().min(1),
@@ -48,10 +53,11 @@ export const importSchema = z
     generated_at: z.string(),
     candidates: z.array(candidateSchema).max(500),
     links: z.array(linkSchema).max(10).optional(),
+    unranked_after: unrankedAfterSchema.optional(),
   })
   .superRefine((p, ctx) => {
-    if (p.version === 1 && p.links) {
-      ctx.addIssue({ code: "custom", path: ["links"], message: "links need version 2" });
+    if (p.version === 1 && (p.links || p.unranked_after !== undefined)) {
+      ctx.addIssue({ code: "custom", path: ["links"], message: "links and unranked_after need version 2" });
     }
     p.candidates.forEach((c, i) => {
       const v2Only = c.rank !== undefined || c.scrobbles === null || c.listens === null || c.picks || c.blurb !== undefined;
@@ -89,6 +95,7 @@ export const listPatchSchema = z
     intro: z.string().max(10000),
     published: z.boolean(),
     links: z.array(linkSchema).max(10),
+    unranked_after: unrankedAfterSchema,
   })
   .partial()
   .strict();

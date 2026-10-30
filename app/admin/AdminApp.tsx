@@ -175,7 +175,10 @@ function ListSettings({ list, busy, run }: { list: ListWithEntries; busy: boolea
   const [title, setTitle] = useState(list.title);
   const [intro, setIntro] = useState(list.intro);
   const [links, setLinks] = useState(formatLinks(list.links));
-  const dirty = title !== list.title || intro !== list.intro || links !== formatLinks(list.links);
+  const [after, setAfter] = useState(list.unranked_after === null ? "" : String(list.unranked_after));
+  const afterValue = /^\d+$/.test(after.trim()) && Number(after) >= 1 ? Number(after) : null;
+  const dirty =
+    title !== list.title || intro !== list.intro || links !== formatLinks(list.links) || afterValue !== list.unranked_after;
   const patch = (body: object) => run(() => api(`/api/admin/lists/${list.year}`, { method: "PATCH", body }));
 
   return (
@@ -192,8 +195,12 @@ function ListSettings({ list, busy, run }: { list: ListWithEntries; busy: boolea
         <span className="text-sm text-zinc-400">Links under the intro, one per line: Label | https://… (e.g. the year&apos;s playlists)</span>
         <textarea className={`${input} min-h-16 font-mono text-sm`} value={links} onChange={(e) => setLinks(e.target.value)} />
       </label>
+      <label className="block">
+        <span className="text-sm text-zinc-400">Number only the first N albums; the rest are listed alphabetically by artist, without a number (blank numbers them all)</span>
+        <input className={`${input} w-24`} inputMode="numeric" value={after} onChange={(e) => setAfter(e.target.value)} />
+      </label>
       <div className="flex flex-wrap items-center gap-3">
-        <button className={button} disabled={busy || !dirty} onClick={() => patch({ title, intro, links: parseLinks(links) })}>Save</button>
+        <button className={button} disabled={busy || !dirty} onClick={() => patch({ title, intro, links: parseLinks(links), unranked_after: afterValue })}>Save</button>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

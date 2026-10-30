@@ -11,8 +11,8 @@ const entry = (over: Partial<Entry>): Entry => ({
   picks: [], blurb: "", scrobbles: null, listens: null, ...over,
 });
 
-const list = (ranked: Entry[], intro = "", links: ListWithEntries["links"] = []): ListWithEntries => ({
-  id: 1, year: 2026, title: "Favorite albums of 2026", intro, published: true, links, ranked, shortlist: [], dismissed: [],
+const list = (ranked: Entry[], intro = "", links: ListWithEntries["links"] = [], unranked_after: number | null = null): ListWithEntries => ({
+  id: 1, year: 2026, title: "Favorite albums of 2026", intro, published: true, links, unranked_after, ranked, shortlist: [], dismissed: [],
 });
 
 describe("paragraphs", () => {
@@ -62,5 +62,23 @@ describe("export links", () => {
     ]));
     expect(html).toContain('<p><a href="https://open.spotify.com/playlist/p1">Top 50 &amp; more</a> · <a href="https://open.spotify.com/playlist/p2">Now Playing</a></p>');
     expect(html.indexOf("Intro.")).toBeLessThan(html.indexOf("Top 50"));
+  });
+});
+
+describe("export with an unnumbered tail", () => {
+  it("numbers the first N and lists the rest alphabetically without a number", () => {
+    const html = renderWordPressHtml(
+      list(
+        [
+          entry({ id: 1, position: 1, artist: "Zed" }),
+          entry({ id: 2, position: 2, artist: "The Beths" }),
+          entry({ id: 3, position: 3, artist: "Adeline Hotel" }),
+        ],
+        "", [], 1,
+      ),
+    );
+    expect(html.indexOf("Zed")).toBeLessThan(html.indexOf("Adeline Hotel"));
+    expect(html.indexOf("Adeline Hotel")).toBeLessThan(html.indexOf("The Beths"));
+    expect(html.match(/font-size:2\.5em/g)).toHaveLength(1);
   });
 });

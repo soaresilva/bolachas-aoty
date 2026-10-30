@@ -18,7 +18,7 @@ export function defaultTitle(year: number) {
 
 export async function getList(db: Db, year: number): Promise<List | null> {
   const [row] = await db.query<List>(
-    "SELECT id, year, title, intro, published, links FROM lists WHERE year = $1",
+    "SELECT id, year, title, intro, published, links, unranked_after FROM lists WHERE year = $1",
     [year],
   );
   return row ?? null;
@@ -51,13 +51,13 @@ export async function getListWithEntries(db: Db, year: number): Promise<ListWith
 export async function updateList(
   db: Db,
   year: number,
-  patch: Partial<Pick<List, "title" | "intro" | "published" | "links">>,
+  patch: Partial<Pick<List, "title" | "intro" | "published" | "links" | "unranked_after">>,
 ): Promise<List> {
   const list = await ensureList(db, year);
   const next = { ...list, ...patch };
   await db.query(
-    "UPDATE lists SET title = $2, intro = $3, published = $4, links = $5::jsonb, updated_at = now() WHERE id = $1",
-    [list.id, next.title, next.intro, next.published, JSON.stringify(next.links)],
+    "UPDATE lists SET title = $2, intro = $3, published = $4, links = $5::jsonb, unranked_after = $6, updated_at = now() WHERE id = $1",
+    [list.id, next.title, next.intro, next.published, JSON.stringify(next.links), next.unranked_after],
   );
   return (await getList(db, year))!;
 }
@@ -245,6 +245,12 @@ export async function importCandidates(db: Db, payload: ImportPayload) {
           [list.id, JSON.stringify(payload.links)],
         )).length > 0
       : false;
+    const filledUnranked = payload.unranked_after
+      ? (await tx.query(
+          "UPDATE lists SET unranked_after = $2 WHERE id = $1 AND unranked_after IS NULL RETURNING id",
+          [list.id, payload.unranked_after],
+        )).length > 0
+      : false;
     if (order) {
       const ids = order.map((albumId) => entryIds.get(albumId)!);
       await tx.query(
@@ -256,7 +262,7 @@ export async function importCandidates(db: Db, payload: ImportPayload) {
     }
     return {
       created, updated, ranked: order?.length ?? 0,
-      filled: { picks: filledPicks, blurbs: filledBlurbs, links: filledLinks },
+      filled: { picks: filledPicks, blurbs: filledBlurbs, links: filledLinks, unranked_after: filledUnranked },
     };
   });
 }

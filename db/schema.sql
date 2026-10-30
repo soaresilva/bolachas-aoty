@@ -45,3 +45,7 @@ CREATE INDEX IF NOT EXISTS entries_list_status ON entries (list_id, status, posi
 
 -- Added for 2025: links shown under the intro (the year's playlists).
 ALTER TABLE lists ADD COLUMN IF NOT EXISTS links jsonb NOT NULL DEFAULT '[]';
+
+-- Added for 2021: positions past this number are shown unnumbered, in
+-- alphabetical order of artist. NULL numbers every position.
+ALTER TABLE lists ADD COLUMN IF NOT EXISTS unranked_after integer CHECK (unranked_after IS NULL OR unranked_after >= 1);
